@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">My</string>
+    <string name="Happy">Happy Birthday</string>
+    <string name="tan">tan</string>
+    <string name="todo" translatable="false">TODO</string>
+
+</resources>
