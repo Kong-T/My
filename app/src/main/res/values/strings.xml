@@ -1,7 +1,14 @@
 <resources>
-    <string name="app_name">My</string>
+    <string name="app_name" translatable="false">Hello</string>
     <string name="Happy">Happy Birthday</string>
-    <string name="tan">tan</string>
+    <string name="tan">result</string>
     <string name="todo" translatable="false">TODO</string>
+    <string name="but">button</string>
+    <string name="hint_txt">input your name</string>
+    <string name="label_add1" translatable="false">+1 point</string>
+    <string name="label_add2" translatable="false">+2 points</string>
+    <string name="label_add3" translatable="false">+3 points</string>
+    <string name="btn_reset_label" translatable="false">Reset</string>
+
 
 </resources>
