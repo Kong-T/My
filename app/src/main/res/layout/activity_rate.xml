@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".rateActivity">
+
+    <EditText
+        android:id="@+id/rmb"
+        android:gravity="center"
+        android:hint="@string/rmb_hint"
+        android:inputType="numberDecimal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        ></EditText>
+    <TextView
+        android:id="@+id/showOut"
+        android:layout_width="match_parent" 
+        android:layout_height="wrap_content"
+        android:textSize="35sp"
+        android:gravity="center"></TextView>
+    
+    <Button
+        android:id="@+id/btn_dollar"
+        android:text="@string/btn_dollar_label"
+        android:onClick="onClick"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"></Button>
+
+    <Button
+        android:id="@+id/btn_euro"
+        android:text="@string/btn_euro_label"
+        android:onClick="onClick"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"></Button>
+
+    <Button
+        android:id="@+id/btn_won"
+        android:text="@string/btn_won_label"
+        android:onClick="onClick"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"></Button>
+
+</androidx.appcompat.widget.LinearLayoutCompat>
