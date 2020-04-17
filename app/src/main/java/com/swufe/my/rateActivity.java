@@ -1,7 +1,11 @@
 package com.swufe.my;
 
+import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -13,7 +17,15 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-public class rateActivity extends AppCompatActivity {
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+
+public class rateActivity extends AppCompatActivity implements Runnable{
 
     //用变量去存储，方便后续修改；
     private final String TAG ="Rate";
@@ -23,7 +35,7 @@ public class rateActivity extends AppCompatActivity {
 
     EditText rmb;
     TextView show;
-
+    Handler handler;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,6 +43,37 @@ public class rateActivity extends AppCompatActivity {
 
         rmb = findViewById(R.id.rmb);
         show = findViewById(R.id.showOut);
+
+        //获取SP里的数据
+        SharedPreferences sharedPreferences = getSharedPreferences("myrate", Activity.MODE_PRIVATE);
+                //第一个参数是字符串，我们取的文件名；第二个是权限
+        dollarRate = sharedPreferences.getFloat("dollar_Rate",0.0f);
+        euroRate = sharedPreferences.getFloat("euro_Rate",0.0f);
+        wonRate = sharedPreferences.getFloat("won_Rate",0.0f);
+
+        Log.i(TAG,"OnCreate: sp dollarRate = " + dollarRate);
+        Log.i(TAG,"OnCreate: sp euroRate = " + euroRate);
+        Log.i(TAG,"OnCreate: sp wonRate = " + wonRate);
+
+        //开启子线程
+        Thread t = new Thread(this);
+        t.start();
+
+        handler = new Handler(){
+            @Override
+            public void handleMessage(@NonNull Message msg) {
+                if (msg.what==5){
+                    //5为标识，判断是哪个子线程，5可以自己定义
+                    String str = (String) msg.obj;//获取msg里的内容
+                    // 由于得到的是obj类型，需要进行类型强转，注意要求是可以转换的类型，如果是Bundle或者日期类型，不能被强转，代码不会报错。但是运行时会出错。
+                    Log.i(TAG,"HandleMessage = getMessage msg ="+str);
+                    show.setText(str);
+                    //将消息打印出来，放在show控件
+                }
+                super.handleMessage(msg);
+            }
+        };
+
     }
 
     public void onClick(View btn){
@@ -121,9 +164,76 @@ public class rateActivity extends AppCompatActivity {
             Log.i(TAG,"openOne:euro_rate="+euroRate);
             Log.i(TAG,"openOne:won_rate="+wonRate);
 
+            //将新设置的汇率写到SP里
+            SharedPreferences sharedPreferences = getSharedPreferences("myrate",Activity.MODE_PRIVATE);
+            //文件名字与上面的一样
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putFloat("dollar_Rate",dollarRate);
+            editor.putFloat("euro_Rate",euroRate);
+            editor.putFloat("won_Rate",wonRate);
+            editor.commit();
+            Log.i(TAG,"数据已保存到sharedPreferences中");
 
         }
 
         super.onActivityResult(requestCode,resultCode,data);
     }
+
+    @Override
+    //子线程的run
+    public void run() {
+    Log.i(TAG,"run:run()......");
+    //延时效果
+    for (int i =0;i<6;i++){
+        Log.i(TAG,"run:i="+i);
+        try {
+            Thread.sleep(2000);//停止两秒钟
+        }catch (InterruptedException e){
+            e.printStackTrace();
+        }
+    }
+
+    //获取Mes对象，用于返回主线程
+        Message msg = handler.obtainMessage(5);
+        //定义了一个what参数，值为5.
+        msg.obj = "Hello form run()";
+        handler.sendMessage(msg);
+        //将我们定义的message发送到message队列里，之后主线程会有一个方法去检测message
+
+        //获取网络内容
+        URL url = null;
+        //在连接网络的过程中，容易出现很多意外，比如网络不好，网络出错等，所以需要异常处理
+        try {
+            url = new URL("http://www.usd-cny.com/icbc.htm");
+            HttpURLConnection http = (HttpURLConnection) url.openConnection();
+            //获取输入流
+            InputStream in = http.getInputStream();
+            //调用输入流转成字符的方法
+            String html =  inputStream2String(in);
+            Log.i(TAG,"run:html = " + html);
+
+        }catch (MalformedURLException e){
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    //我们从网站里获得的是输入流，需要转成字符串形式
+    //需抛出异常处理
+    private String inputStream2String(InputStream inputStream) throws IOException {
+        final int bufferSize = 1024;
+        final char[] buffer  = new char[bufferSize];
+        final StringBuilder out = new StringBuilder();
+        Reader in = new InputStreamReader(inputStream,"gb2312");
+        for (; ; ) {
+            int rsz = in.read(buffer, 0, buffer.length);
+            if (rsz < 0)
+                break;
+            out.append(buffer, 0, rsz);
+        }
+            return out.toString();
+        }
+
 }
