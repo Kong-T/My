@@ -1,5 +1,6 @@
 package com.swufe.my;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -17,13 +18,15 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 
 public class rateActivity extends AppCompatActivity implements Runnable{
 
@@ -36,6 +39,7 @@ public class rateActivity extends AppCompatActivity implements Runnable{
     EditText rmb;
     TextView show;
     Handler handler;
+    @SuppressLint("HandlerLeak")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,7 +60,7 @@ public class rateActivity extends AppCompatActivity implements Runnable{
         Log.i(TAG,"OnCreate: sp wonRate = " + wonRate);
 
         //开启子线程
-        Thread t = new Thread(this);
+        Thread t = new Thread((Runnable) this);
         t.start();
 
         handler = new Handler(){
@@ -64,10 +68,18 @@ public class rateActivity extends AppCompatActivity implements Runnable{
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what==5){
                     //5为标识，判断是哪个子线程，5可以自己定义
-                    String str = (String) msg.obj;//获取msg里的内容
+                    Bundle bdl = (Bundle) msg.obj;//获取msg里的内容
                     // 由于得到的是obj类型，需要进行类型强转，注意要求是可以转换的类型，如果是Bundle或者日期类型，不能被强转，代码不会报错。但是运行时会出错。
-                    Log.i(TAG,"HandleMessage = getMessage msg ="+str);
-                    show.setText(str);
+                   dollarRate = bdl.getFloat("dollar-rate");
+                    euroRate = bdl.getFloat("euro-rate");
+                    wonRate = bdl.getFloat("won-rate");
+
+                    Log.i(TAG,"handleMessage: dollarRate:"+dollarRate);
+                    Log.i(TAG,"handleMessage: euroRate:"+euroRate);
+                    Log.i(TAG,"handleMessage: wonRate:"+wonRate);
+
+                    Toast.makeText(rateActivity.this,"汇率已更新",Toast.LENGTH_SHORT).show();
+
                     //将消息打印出来，放在show控件
                 }
                 super.handleMessage(msg);
@@ -171,6 +183,7 @@ public class rateActivity extends AppCompatActivity implements Runnable{
             editor.putFloat("dollar_Rate",dollarRate);
             editor.putFloat("euro_Rate",euroRate);
             editor.putFloat("won_Rate",wonRate);
+            editor.apply();
             editor.commit();
             Log.i(TAG,"数据已保存到sharedPreferences中");
 
@@ -179,46 +192,100 @@ public class rateActivity extends AppCompatActivity implements Runnable{
         super.onActivityResult(requestCode,resultCode,data);
     }
 
-    @Override
-    //子线程的run
-    public void run() {
-    Log.i(TAG,"run:run()......");
-    //延时效果
-    for (int i =0;i<6;i++){
-        Log.i(TAG,"run:i="+i);
-        try {
-            Thread.sleep(2000);//停止两秒钟
-        }catch (InterruptedException e){
-            e.printStackTrace();
+
+        public void run() {
+
+            for(int j = 0 ;;j++) {
+                Log.i(TAG, "第" + j + "次");
+                try {
+                    Thread.sleep(2000);//停止一天
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                //延时效果
+            for(int i = 0; i < 3; i++){
+                Log.i(TAG, "run:i=" + i);
+                try {
+                    Thread.sleep(2000);//停止两秒钟
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+                //用于保存获取的汇率
+                Bundle bundle = new Bundle();
+
+                //将我们定义的message发送到message队列里，之后主线程会有一个方法去检测message
+
+                //获取网络内容
+                //        URL url = null;
+                //        //在连接网络的过程中，容易出现很多意外，比如网络不好，网络出错等，所以需要异常处理
+                //        try {
+                //            url = new URL("http://www.usd-cny.com/icbc.htm");
+                //            HttpURLConnection http = (HttpURLConnection) url.openConnection();
+                //            //获取输入流
+                //            InputStream in = http.getInputStream();
+                //            //调用输入流转成字符的方法
+                //            String html =  inputStream2String(in);
+                //            Log.i(TAG,"run:html = " + html);
+                //
+                //        }catch (MalformedURLException e){
+                //            e.printStackTrace();
+                //        } catch (IOException e) {
+                //            e.printStackTrace();
+                //        }
+
+                Document doc = null;
+                try {
+                    doc = Jsoup.connect("http://www.usd-cny.com/bankofchina.htm").get();
+
+                    Log.i(TAG, "run:" + doc.title());
+                    Elements tables = doc.getElementsByTag("Table");
+                    //通过下面的代码查找我们所需的table的位置
+                    //            for(Element table : tables){
+                    //                Log.i(TAG,"RUN:TABLE[" +i +"]" + table);
+                    //                i++;
+                    //            }
+                    Element table0 = tables.get(0);
+                    //            Log.i(TAG,"run: table6="+table6);
+                    //获取TD中的数据
+                    Elements tds = table0.getElementsByTag("td");
+                    //提取币种和折算价
+                    for (int i = 0; i < tds.size(); i += 6) {
+                        Element td1 = tds.get(i);
+                        Element td2 = tds.get(i + 5);
+                        Log.i(TAG, "run:" + td1.text() + "==>" + td2.text());
+                        String str1 = td1.text();
+                        String val = td2.text();
+
+                        if ("美元".equals(str1)) {
+                            bundle.putFloat("dollar-rate", 100f / Float.parseFloat(val));
+                        } else if ("欧元".equals(str1)) {
+                            bundle.putFloat("euro-rate", 100f / Float.parseFloat(val));
+                        } else if ("韩元".equals(str1)) {
+                            bundle.putFloat("won-rate", 100f / Float.parseFloat(val));
+                        }
+                    }
+                    //            for(Element td: tds){
+                    //                Log.i(TAG,"run:tds=" + td);
+                    //                Log.i(TAG,"run:text=" + td.text());
+                    //                Log.i(TAG,"run:html=" + td.html());
+                    //
+                    //            }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                //获取Mes对象，用于返回主线程
+                Message msg = handler.obtainMessage(5);
+                //定义了一个what参数，值为5.
+                //        msg.obj = "Hello form run()";
+                msg.obj = bundle;
+                handler.sendMessage(msg);
+            }
         }
-    }
 
-    //获取Mes对象，用于返回主线程
-        Message msg = handler.obtainMessage(5);
-        //定义了一个what参数，值为5.
-        msg.obj = "Hello form run()";
-        handler.sendMessage(msg);
-        //将我们定义的message发送到message队列里，之后主线程会有一个方法去检测message
 
-        //获取网络内容
-        URL url = null;
-        //在连接网络的过程中，容易出现很多意外，比如网络不好，网络出错等，所以需要异常处理
-        try {
-            url = new URL("http://www.usd-cny.com/icbc.htm");
-            HttpURLConnection http = (HttpURLConnection) url.openConnection();
-            //获取输入流
-            InputStream in = http.getInputStream();
-            //调用输入流转成字符的方法
-            String html =  inputStream2String(in);
-            Log.i(TAG,"run:html = " + html);
 
-        }catch (MalformedURLException e){
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
 
     //我们从网站里获得的是输入流，需要转成字符串形式
     //需抛出异常处理
