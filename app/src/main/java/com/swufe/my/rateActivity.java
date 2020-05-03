@@ -27,6 +27,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 public class rateActivity extends AppCompatActivity implements Runnable{
 
@@ -35,6 +38,7 @@ public class rateActivity extends AppCompatActivity implements Runnable{
     private float dollarRate = 0.1f;
     private float euroRate = 0.2f;
     private float wonRate = 0.3f;
+    private String updateDate = "";
 
     EditText rmb;
     TextView show;
@@ -54,14 +58,29 @@ public class rateActivity extends AppCompatActivity implements Runnable{
         dollarRate = sharedPreferences.getFloat("dollar_Rate",0.0f);
         euroRate = sharedPreferences.getFloat("euro_Rate",0.0f);
         wonRate = sharedPreferences.getFloat("won_Rate",0.0f);
+        updateDate = sharedPreferences.getString("update_date","");
+
+        //获取当前系统时间
+        Date today = Calendar.getInstance().getTime();
+        SimpleDateFormat sdf = new SimpleDateFormat("yy-MM-dd");
+        final String todayStr = sdf.format(today);
 
         Log.i(TAG,"OnCreate: sp dollarRate = " + dollarRate);
         Log.i(TAG,"OnCreate: sp euroRate = " + euroRate);
         Log.i(TAG,"OnCreate: sp wonRate = " + wonRate);
+        Log.i(TAG,"OnCreate: sp updateDate  = "+ updateDate);
+        Log.i(TAG,"OnCreate: todayStr = "+ todayStr);
 
-        //开启子线程
-        Thread t = new Thread((Runnable) this);
-        t.start();
+        //判断时间
+        if(!todayStr.equals(updateDate)){
+            Log.i(TAG,"onCreate:需要更新");
+            //开启子线程
+            Thread t = new Thread((Runnable) this);
+            t.start();
+        }else{
+            Log.i(TAG,"onCreate:不需要更新");
+        }
+
 
         handler = new Handler(){
             @Override
@@ -77,6 +96,16 @@ public class rateActivity extends AppCompatActivity implements Runnable{
                     Log.i(TAG,"handleMessage: dollarRate:"+dollarRate);
                     Log.i(TAG,"handleMessage: euroRate:"+euroRate);
                     Log.i(TAG,"handleMessage: wonRate:"+wonRate);
+
+                    //将新设置的汇率写到SP里
+                    SharedPreferences sharedPreferences = getSharedPreferences("myrate",Activity.MODE_PRIVATE);
+                    //文件名字与上面的一样
+                    SharedPreferences.Editor editor = sharedPreferences.edit();
+                    editor.putFloat("dollar_Rate",dollarRate);
+                    editor.putFloat("euro_Rate",euroRate);
+                    editor.putFloat("won_Rate",wonRate);
+                    editor.putString("update_date",todayStr);
+                    editor.apply();
 
                     Toast.makeText(rateActivity.this,"汇率已更新",Toast.LENGTH_SHORT).show();
 
@@ -195,13 +224,6 @@ public class rateActivity extends AppCompatActivity implements Runnable{
 
         public void run() {
 
-            for(int j = 0 ;;j++) {
-                Log.i(TAG, "第" + j + "次");
-                try {
-                    Thread.sleep(2000);//停止一天
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
 
                 //延时效果
             for(int i = 0; i < 3; i++){
@@ -213,7 +235,7 @@ public class rateActivity extends AppCompatActivity implements Runnable{
                 }
             }
                 //用于保存获取的汇率
-                Bundle bundle = new Bundle();
+                Bundle bundle;
 
                 //将我们定义的message发送到message队列里，之后主线程会有一个方法去检测message
 
@@ -235,46 +257,7 @@ public class rateActivity extends AppCompatActivity implements Runnable{
                 //            e.printStackTrace();
                 //        }
 
-                Document doc = null;
-                try {
-                    doc = Jsoup.connect("http://www.usd-cny.com/bankofchina.htm").get();
-
-                    Log.i(TAG, "run:" + doc.title());
-                    Elements tables = doc.getElementsByTag("Table");
-                    //通过下面的代码查找我们所需的table的位置
-                    //            for(Element table : tables){
-                    //                Log.i(TAG,"RUN:TABLE[" +i +"]" + table);
-                    //                i++;
-                    //            }
-                    Element table0 = tables.get(0);
-                    //            Log.i(TAG,"run: table6="+table6);
-                    //获取TD中的数据
-                    Elements tds = table0.getElementsByTag("td");
-                    //提取币种和折算价
-                    for (int i = 0; i < tds.size(); i += 6) {
-                        Element td1 = tds.get(i);
-                        Element td2 = tds.get(i + 5);
-                        Log.i(TAG, "run:" + td1.text() + "==>" + td2.text());
-                        String str1 = td1.text();
-                        String val = td2.text();
-
-                        if ("美元".equals(str1)) {
-                            bundle.putFloat("dollar-rate", 100f / Float.parseFloat(val));
-                        } else if ("欧元".equals(str1)) {
-                            bundle.putFloat("euro-rate", 100f / Float.parseFloat(val));
-                        } else if ("韩元".equals(str1)) {
-                            bundle.putFloat("won-rate", 100f / Float.parseFloat(val));
-                        }
-                    }
-                    //            for(Element td: tds){
-                    //                Log.i(TAG,"run:tds=" + td);
-                    //                Log.i(TAG,"run:text=" + td.text());
-                    //                Log.i(TAG,"run:html=" + td.html());
-                    //
-                    //            }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                bundle = getfromBOC();
                 //获取Mes对象，用于返回主线程
                 Message msg = handler.obtainMessage(5);
                 //定义了一个what参数，值为5.
@@ -282,8 +265,102 @@ public class rateActivity extends AppCompatActivity implements Runnable{
                 msg.obj = bundle;
                 handler.sendMessage(msg);
             }
-        }
 
+
+//        从bankofchina获取数据
+
+    private Bundle getfromBOC() {
+        Bundle bundle = new Bundle();
+        Document doc = null;
+        try {
+            doc = Jsoup.connect("http://www.boc.cn/sourcedb/whpj/").get();
+            Log.i(TAG, "run:" + doc.title());
+            Elements tables = doc.getElementsByTag("table");
+            //通过下面的代码查找我们所需的table的位置
+//            int i=0;
+//            for(Element table : tables){
+//                            Log.i(TAG,"RUN:TABLE[" +i +"]" + table);
+//                            i++;
+//            }
+
+            //获取TD中的数据
+            Element table0 = tables.get(1);
+            Log.i(TAG,"run: table1="+table0);
+            Elements tds = table0.getElementsByTag("td");
+            //提取币种和折算价
+            for (int j = 0; j < tds.size(); j += 8) {
+                Element td1 = tds.get(j);
+                Element td2 = tds.get(j + 5);
+                Log.i(TAG, "run:" + td1.text() + "==>" + td2.text());
+                String str1 = td1.text();
+                String val = td2.text();
+
+                if ("美元".equals(str1)) {
+                    bundle.putFloat("dollar-rate", 100f / Float.parseFloat(val));
+                } else if ("欧元".equals(str1)) {
+                    bundle.putFloat("euro-rate", 100f / Float.parseFloat(val));
+                } else if ("韩国元".equals(str1)) {
+                    bundle.putFloat("won-rate", 100f / Float.parseFloat(val));
+                }
+            }
+            //            for(Element td: tds){
+            //                Log.i(TAG,"run:tds=" + td);
+            //                Log.i(TAG,"run:text=" + td.text());
+            //                Log.i(TAG,"run:html=" + td.html());
+            //
+            //            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return bundle;
+    }
+
+    //        从bankofchina获取数据
+
+    private Bundle getfromUsdcny() {
+        Bundle bundle = new Bundle();
+        Document doc = null;
+        try {
+            doc = Jsoup.connect("http://www.usd-cny.com/bankofchina.htm").get();
+
+            Log.i(TAG, "run:" + doc.title());
+            Elements tables = doc.getElementsByTag("Table");
+            //通过下面的代码查找我们所需的table的位置
+            //            for(Element table : tables){
+            //                Log.i(TAG,"RUN:TABLE[" +i +"]" + table);
+            //                i++;
+            //            }
+            Element table0 = tables.get(0);
+            //            Log.i(TAG,"run: table6="+table6);
+            //获取TD中的数据
+            Elements tds = table0.getElementsByTag("td");
+            //提取币种和折算价
+            for (int i = 0; i < tds.size(); i += 6) {
+                Element td1 = tds.get(i);
+                Element td2 = tds.get(i + 5);
+                Log.i(TAG, "run:" + td1.text() + "==>" + td2.text());
+                String str1 = td1.text();
+                String val = td2.text();
+
+                if ("美元".equals(str1)) {
+                    bundle.putFloat("dollar-rate", 100f / Float.parseFloat(val));
+                } else if ("欧元".equals(str1)) {
+                    bundle.putFloat("euro-rate", 100f / Float.parseFloat(val));
+                } else if ("韩元".equals(str1)) {
+                    bundle.putFloat("won-rate", 100f / Float.parseFloat(val));
+                }
+            }
+            //            for(Element td: tds){
+            //                Log.i(TAG,"run:tds=" + td);
+            //                Log.i(TAG,"run:text=" + td.text());
+            //                Log.i(TAG,"run:html=" + td.html());
+            //
+            //            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return bundle;
+    }
 
 
 
