@@ -180,6 +180,10 @@ public class rateActivity extends AppCompatActivity implements Runnable{
             //这里老师演示直接引用之前的打开新窗口的方法。
             // tip:为了避免出现两段相同代码，通过method功能形成了方法，可以直接引用
             config();
+        }else if(item.getItemId()==R.id.open_list){
+            //打开列表
+            Intent list = new Intent(this,MyListActivity.class);
+            startActivity(list);
         }
         return super.onOptionsItemSelected(item);
     }
