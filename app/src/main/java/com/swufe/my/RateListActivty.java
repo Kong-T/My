@@ -33,7 +33,7 @@ public class RateListActivty extends ListActivity implements Runnable {
             list1.add("item" + i);
         }
 
-        ListAdapter adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, data);
+            ListAdapter adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, data);
         setListAdapter(adapter);
 
         Thread t = new Thread(this);
