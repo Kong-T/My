@@ -65,6 +65,7 @@ public class rateActivity extends AppCompatActivity implements Runnable{
         SimpleDateFormat sdf = new SimpleDateFormat("yy-MM-dd");
         final String todayStr = sdf.format(today);
 
+
         Log.i(TAG,"OnCreate: sp dollarRate = " + dollarRate);
         Log.i(TAG,"OnCreate: sp euroRate = " + euroRate);
         Log.i(TAG,"OnCreate: sp wonRate = " + wonRate);

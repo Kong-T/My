@@ -12,7 +12,7 @@
     <string name="btn_dollar_label" translatable="false">Dollar</string>
     <string name="btn_euro_label" translatable="false">Euro</string>
     <string name="btn_won_label" translatable="false">won</string>
-    <string name="rmb_hint" translatable="false">Input RMB</string>
+    <string name="rmb_hint" translatable="false">Input keywords</string>
     <string name="btn_opencfg_label">config</string>
     <string name="btn_save_label">save</string>
     <string name="menu_set_label">Setting</string>
