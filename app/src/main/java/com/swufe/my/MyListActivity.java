@@ -27,7 +27,7 @@ public class MyListActivity extends AppCompatActivity implements AdapterView.OnI
             data.add("item"+i);
         }
 
-         adapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,data);
+        adapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,data);
          listview.setAdapter(adapter);
          listview.setEmptyView(findViewById(R.id.no_data));
 

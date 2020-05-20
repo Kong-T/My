@@ -1,6 +1,8 @@
 package com.swufe.my;
 
+import android.app.AlertDialog;
 import android.app.ListActivity;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -22,11 +24,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class MyList2Activity extends ListActivity implements Runnable, AdapterView.OnItemClickListener, View.OnClickListener {
+public class MyList2Activity extends ListActivity implements Runnable, AdapterView.OnItemClickListener, View.OnClickListener, AdapterView.OnItemLongClickListener {
 
     String TAG = "mylist2";
     Handler handler;
-    private ArrayList<HashMap<String,String>> listItems;//存放文字、图片信息；
+    private List<HashMap<String,String>> listItems;//存放文字、图片信息；
     private SimpleAdapter listItemAdapter;//适配器
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,8 +42,8 @@ public class MyList2Activity extends ListActivity implements Runnable, AdapterVi
         handler = new Handler() {
             public void handleMessage(Message msg) {
                 if (msg.what == 5) {
-                    List<HashMap<String, String>> List2 = (List<HashMap<String, String>>) msg.obj;
-                    listItemAdapter = new SimpleAdapter(MyList2Activity.this,List2,//listItems 数据源
+                    listItems = (List<HashMap<String, String>>) msg.obj;
+                    listItemAdapter = new SimpleAdapter(MyList2Activity.this,listItems,//listItems 数据源
                             R.layout.activity_my_list2,// ListItem的xml布局实现
                             new String[]{"ItemTitle","ItemDetail"},
                             new int[] {R.id.itemtitle,R.id.itemDetail}
@@ -53,6 +55,8 @@ public class MyList2Activity extends ListActivity implements Runnable, AdapterVi
             }
         };
         getListView().setOnItemClickListener(this);
+        getListView().setOnItemLongClickListener(this);
+
     }
 
     private void initListView() {
@@ -145,5 +149,25 @@ public class MyList2Activity extends ListActivity implements Runnable, AdapterVi
     @Override
     public void onClick(View v) {
 
+    }
+
+    @Override
+    public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, long id) {
+        Log.i(TAG,"onItemLongClick:长按列表项position"+position);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("提示").setMessage("请确认是否删除当前数据").setPositiveButton("是",new DialogInterface.OnClickListener() {
+
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Log.i(TAG, "onClick:对话框事件处理");
+                //删除数据
+                listItems.remove(position);
+                listItemAdapter.notifyDataSetChanged();
+            }
+        }).setNegativeButton("否",null);
+        builder.create().show();
+
+        return true;
     }
 }
