@@ -2,6 +2,7 @@ package com.swufe.my;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -27,9 +28,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.net.MalformedURLException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 public class rateActivity extends AppCompatActivity implements Runnable{
 
@@ -39,6 +45,8 @@ public class rateActivity extends AppCompatActivity implements Runnable{
     private float euroRate = 0.2f;
     private float wonRate = 0.3f;
     private String updateDate = "";
+    private String logDate = "";
+    private final String DATE_SP_KEY = "lastRateDatestr";
 
     EditText rmb;
     TextView show;
@@ -59,6 +67,7 @@ public class rateActivity extends AppCompatActivity implements Runnable{
         euroRate = sharedPreferences.getFloat("euro_Rate",0.0f);
         wonRate = sharedPreferences.getFloat("won_Rate",0.0f);
         updateDate = sharedPreferences.getString("update_date","");
+        logDate = sharedPreferences.getString("lastRateDatestr","");
 
         //获取当前系统时间
         Date today = Calendar.getInstance().getTime();
@@ -71,6 +80,8 @@ public class rateActivity extends AppCompatActivity implements Runnable{
         Log.i(TAG,"OnCreate: sp wonRate = " + wonRate);
         Log.i(TAG,"OnCreate: sp updateDate  = "+ updateDate);
         Log.i(TAG,"OnCreate: todayStr = "+ todayStr);
+        Log.i("List","lastRateDatestr = "+ logDate);
+
 
         //判断时间
         if(!todayStr.equals(updateDate)){
@@ -183,8 +194,9 @@ public class rateActivity extends AppCompatActivity implements Runnable{
             config();
         }else if(item.getItemId()==R.id.open_list){
             //打开列表
-            Intent list = new Intent(this,MyList2Activity.class);
+            Intent list = new Intent(this,RateListActivty.class);
             startActivity(list);
+
         }
         return super.onOptionsItemSelected(item);
     }
@@ -229,18 +241,96 @@ public class rateActivity extends AppCompatActivity implements Runnable{
 
         public void run() {
 
+        //获取网络数据，放入LIST带回到主线程中
+            List<String> retList = new ArrayList<>();
+            String curDateStr = (new SimpleDateFormat("yyyy-MM-dd")).format(new Date());
+            Log.i("run","curDateStr:"+ curDateStr + " logDate:" + logDate);
 
-                //延时效果
-            for(int i = 0; i < 3; i++){
-                Log.i(TAG, "run:i=" + i);
+            if (curDateStr.equals(logDate)){
+                //如果相等，则从数据库中获取数据
+                Log.i("run","日期相等，从数据库中获取数据");
+                RateManager dbManager = new RateManager(rateActivity.this);
+                Constructor<RateManager> constructor = null;
                 try {
-                    Thread.sleep(2000);//停止两秒钟
+                    constructor = RateManager.class.getConstructor();
+                } catch (NoSuchMethodException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    RateManager manager = constructor.newInstance(this);
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch (InstantiationException e) {
+                    e.printStackTrace();
+                } catch (InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+//                RateManager manager = new RateManager(this);
+           }else{
+                try {
+                    Thread.sleep(3000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-            }
+                Log.i("run","日期不相等，从网络中获取数据");
+                Document doc = null;
+                try {
+                    doc = Jsoup.connect("http://www.boc.cn/sourcedb/whpj/").get();
+                    Log.i(TAG, "run:" + doc.title());
+                    Elements tables = doc.getElementsByTag("table");
+                    //获取TD中的数据
+                    Element table0 = tables.get(1);
+                    Log.i(TAG, "run: table1=" + table0);
+                    Elements tds = table0.getElementsByTag("td");
+
+                    List<RateItem> rateList = new ArrayList<RateItem>();
+                    //提取币种和折算价
+                    for (int j = 0; j < tds.size(); j += 8) {
+                        Element td1 = tds.get(j);
+                        Element td2 = tds.get(j + 5);
+                        Log.i(TAG, "run:" + td1.text() + "==>" + td2.text());
+                        String str1 = td1.text();
+                        String val = td2.text();
+                        retList.add(str1 + "==>" + val);
+                        rateList.add(new RateItem(str1,val));
+                    }
+
+                    RateManager manager = new RateManager(this);
+                    manager.addAll(rateList);
+
+                    //更新记录日期
+                    SharedPreferences sp = getSharedPreferences("myrate", Context.MODE_PRIVATE);
+                    SharedPreferences.Editor edit = sp.edit();
+                    edit.putString(DATE_SP_KEY, curDateStr);
+                    edit.commit();
+                    Log.i("run", "更新日期结束：" + curDateStr);
+                }catch (MalformedURLException e){
+                    e.printStackTrace();
+                }catch (IOException e){
+                    e.printStackTrace();
+                }
+
                 //用于保存获取的汇率
-                Bundle bundle;
+//                Bundle bundle;
+
+                //获取Mes对象，用于返回主线程
+                Message msg = handler.obtainMessage(5);
+                //定义了一个what参数，值为5.
+                //        msg.obj = "Hello form run()";
+                msg.obj = retList;
+                handler.sendMessage(msg);
+
+            }
+
+//                //延时效果
+//            for(int i = 0; i < 3; i++){
+//                Log.i(TAG, "run:i=" + i);
+//                try {
+//                    Thread.sleep(2000);//停止两秒钟
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//            }
 
                 //将我们定义的message发送到message队列里，之后主线程会有一个方法去检测message
 
@@ -262,13 +352,6 @@ public class rateActivity extends AppCompatActivity implements Runnable{
                 //            e.printStackTrace();
                 //        }
 
-                bundle = getfromBOC();
-                //获取Mes对象，用于返回主线程
-                Message msg = handler.obtainMessage(5);
-                //定义了一个what参数，值为5.
-                //        msg.obj = "Hello form run()";
-                msg.obj = bundle;
-                handler.sendMessage(msg);
             }
 
 
